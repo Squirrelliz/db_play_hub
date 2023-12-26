@@ -7,7 +7,7 @@ from app.models.player import Player as PlayerModel
 
 
 def check_users():
-    print("Check game out user")
+    print("check game out user")
     with SessionLocal() as db:
         users = db.query(PlayerModel).filter(PlayerModel.game_id != None).all()
         current_time = datetime.now()
