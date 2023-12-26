@@ -1,0 +1,108 @@
+--команда
+CREATE TABLE IF NOT EXISTS team (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null,
+    count_participant int default 0
+);
+
+--вид спорта
+CREATE TABLE IF NOT EXISTS sport_type (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null unique,
+    description varchar(500) not null
+);
+
+CREATE TABLE IF NOT EXISTS stadium (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null,
+    address varchar(100) not null,
+    coordinates varchar(100) not null,
+    approved boolean default false,
+    sport_type_id bigint references sport_type not null
+);
+
+--игра
+CREATE TABLE IF NOT EXISTS game (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null,
+    difficulty varchar(100) not null,
+    start_time timestamp not null,
+    end_time timestamp not null,
+    count_participant int default 0,
+    stadium_id bigint references stadium not null
+);
+
+CREATE TABLE IF NOT EXISTS team_game
+(
+  team_id bigint references team,
+  game_id bigint references game,
+  primary key (team_id, game_id)
+);
+
+--пользователь
+CREATE TABLE IF NOT EXISTS player (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null unique,
+    email varchar(100) not null unique,
+    password varchar(100) not null,
+    role varchar(10) default 'user',
+    team_id bigint references team,
+    game_id bigint references game,
+    experience int not null
+);
+
+--награды
+CREATE TABLE IF NOT EXISTS award (
+    id bigint generated always as identity primary key,
+    name varchar(100) not null,
+    description varchar(500) not null,
+    experience_points int not null
+);
+
+-- связанная таблица пользователь - награды
+CREATE TABLE IF NOT EXISTS player_award
+(
+  player_id bigint references player,
+  award_id bigint references award,
+  date_created timestamp default current_timestamp,
+  primary key (player_id, award_id)
+);
+
+
+
+-- ТРИГГЕРЫ
+CREATE OR REPLACE FUNCTION update_player_award()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO player_award (player_id, award_id)
+    SELECT NEW.id, a.id
+    FROM award a
+    WHERE NEW.experience >= a.experience_points;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_player_award_trigger
+AFTER INSERT ON player
+FOR EACH ROW
+EXECUTE FUNCTION update_player_award();
+
+
+
+CREATE OR REPLACE FUNCTION update_award_player()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO player_award (player_id, award_id)
+    SELECT p.id, NEW.id
+    FROM player p
+    WHERE p.experience >= NEW.experience_points;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_award_player_trigger
+AFTER INSERT ON award
+FOR EACH ROW
+EXECUTE FUNCTION update_award_player();
